@@ -17,7 +17,7 @@ The above class implements LazyObject
 
 ```
 var testobj = TestObj.Create();
-testobj.SetLazy(testObj => testObj.Date, ()=>
+testobj.SetLazy(obj => obj.Date, ()=>
 {
     //Do some long running work here
     return DateTime.Now;
