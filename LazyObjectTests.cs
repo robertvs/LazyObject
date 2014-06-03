@@ -1,7 +1,7 @@
 public class TestObj : LazyObject<TestObj>
 {
-    public string Text { get; set; }
-    public DateTime Date { get; set; }
+    public virtual string Text { get; set; }
+    public virtual DateTime Date { get; set; }
 }
 
 
