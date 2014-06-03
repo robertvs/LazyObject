@@ -23,9 +23,8 @@ testobj.SetLazy(p => p.Date, ()=>
     return DateTime.Now;
 });
 ```
-Using the static _Create_ method we tell LazyObject<>to create a proxy instance of the class
-Now we can use the **SetLazy** method to map delegates to the objects properties! Yey!
-
-We can access the properties as usual and DynamicProxy will intecept the call and return and execute the delegate
+Using the static **Create** method we tell LazyObject to create a proxy instance of the **TestObj** class.
+Now we can use the **SetLazy** method to map delegates to the objects properties! Yey! 
+We can access the properties as usual and DynamicProxy will intecept the call and execute the delegate
 
 ```DateTime testDate = testObj.Date; //this is when the delegate will be called```
