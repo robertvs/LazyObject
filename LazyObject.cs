@@ -112,8 +112,7 @@ public abstract class LazyObject<TClass> : IIntercept where TClass : class
     /// <param name="val">the value of the target property</param>
     private static void SetValue(IInvocation invocation, string propertyName, object val)
     {
-        Type type = invocation.InvocationTarget.GetType();
-        var prop = type.GetProperty(propertyName);
+        var prop = invocation.TargetType.GetProperty(propertyName);
         prop.SetValue(invocation.InvocationTarget, val);
     }
 }
