@@ -6,15 +6,14 @@
 public abstract class LazyObject<TClass> : IIntercept where TClass : class
 {
     private Dictionary<string, Func<object>> _valueDelegates = new Dictionary<string, Func<object>>();
-    private Dictionary<string, object> _cachedValues = new Dictionary<string, object>();
     private static ProxyGenerator _proxyGenerator = new ProxyGenerator();
-
     /// <summary>
     /// Will create a new Proxy instance of type TClass
     /// </summary>
     /// <returns></returns>
     public static TClass Create()
     {
+        //return _proxyGenerator.CreateClassProxy<TClass>(new MiniProfilerInterceptor(), new GenericInterceptor());
         return _proxyGenerator.CreateClassProxy<TClass>(new GenericInterceptor());
     }
 
@@ -33,7 +32,7 @@ public abstract class LazyObject<TClass> : IIntercept where TClass : class
         {
             return valueGetter();
         };
-        RemoveFromCache(propName);
+        //RemoveFromCache(propName);
     }
 
     /// <summary>
@@ -51,11 +50,6 @@ public abstract class LazyObject<TClass> : IIntercept where TClass : class
         if (IsGetMethod(invocation))
         {
             InterceptGet(invocation);
-            return;
-        }
-        else if (IsSetMethods(invocation))
-        {
-            InterceptSet(invocation);
             return;
         }
         invocation.Proceed();
@@ -92,9 +86,9 @@ public abstract class LazyObject<TClass> : IIntercept where TClass : class
     private void InterceptGet(IInvocation invocation)
     {
         string name = invocation.Method.Name.Replace("get_", string.Empty);
-        if (_cachedValues.ContainsKey(name))
+        if (!_valueDelegates.ContainsKey(name))
         {
-            invocation.ReturnValue = _cachedValues[name];
+            invocation.Proceed();
             return;
         }
         Func<object> valuegetter = null;
@@ -105,30 +99,21 @@ public abstract class LazyObject<TClass> : IIntercept where TClass : class
             return;
         }
         var val = valuegetter();
-        _cachedValues[name] = val;
         invocation.ReturnValue = val;
+        SetValue(invocation, name, val); //set the value of the property
+        _valueDelegates.Remove(name);
     }
+
     /// <summary>
-    /// Intercepts SET calls to properties of this class
-    /// <para>Wraps the values in a delegate so that it isn't executed at once</para>
+    /// Set the actual value of the property
     /// </summary>
-    /// <param name="invocation"></param>
-    private void InterceptSet(IInvocation invocation)
+    /// <param name="invocation">The invocation obj</param>
+    /// <param name="propertyName">the name of the property of the target to set</param>
+    /// <param name="val">the value of the target property</param>
+    private static void SetValue(IInvocation invocation, string propertyName, object val)
     {
-        string name = invocation.Method.Name.Replace("set_", string.Empty);
-        var value = invocation.GetArgumentValue(0);
-        _valueDelegates[name] = () => { return value; };
-        RemoveFromCache(name);
-    }
-    /// <summary>
-    /// Will remove a cahed object from the cache dictionary
-    /// </summary>
-    /// <param name="name"></param>
-    private void RemoveFromCache(string name)
-    {
-        if (_cachedValues.ContainsKey(name))
-        {
-            _cachedValues.Remove(name);
-        }
+        Type type = invocation.InvocationTarget.GetType();
+        var prop = type.GetProperty(propertyName);
+        prop.SetValue(invocation.InvocationTarget, val);
     }
 }
