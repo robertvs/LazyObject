@@ -52,6 +52,11 @@ public abstract class LazyObject<TClass> : IIntercept where TClass : class
             InterceptGet(invocation);
             return;
         }
+        if (IsSetMethods(invocation))
+        {
+            InterceptSet(invocation);
+            return;
+        }
         invocation.Proceed();
     }
 
@@ -101,7 +106,18 @@ public abstract class LazyObject<TClass> : IIntercept where TClass : class
         var val = valuegetter();
         invocation.ReturnValue = val;
         SetValue(invocation, name, val); //set the value of the property
-        _valueDelegates.Remove(name);
+    }
+
+    /// <summary>
+    /// Intercepts SET calls to properties of this class
+    /// <para>Sets the property value</para>
+    /// </summary>
+    /// <param name="invocation"></param>
+    private void InterceptSet(IInvocation invocation)
+    {
+        string name = invocation.Method.Name.Replace("set_", string.Empty);
+        var value = invocation.GetArgumentValue(0);
+        SetValue(invocation, name, value);
     }
 
     /// <summary>
@@ -110,9 +126,10 @@ public abstract class LazyObject<TClass> : IIntercept where TClass : class
     /// <param name="invocation">The invocation obj</param>
     /// <param name="propertyName">the name of the property of the target to set</param>
     /// <param name="val">the value of the target property</param>
-    private static void SetValue(IInvocation invocation, string propertyName, object val)
+    private void SetValue(IInvocation invocation, string propertyName, object val)
     {
         var prop = invocation.TargetType.GetProperty(propertyName);
         prop.SetValue(invocation.InvocationTarget, val);
+        _valueDelegates.Remove(propertyName);
     }
 }
