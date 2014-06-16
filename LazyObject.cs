@@ -3,7 +3,7 @@
 /// <para>User static Create() method to get lazy proxy instance</para>
 /// </summary>
 /// <typeparam name="TClass">The class to intercept with DynamicProxy and implement lazy loading on</typeparam>
-public abstract class LazyObject<TClass> : IIntercept where TClass : class
+public abstract class LazyObject<TClass> : IIntercept where TClass : class,IIntercept
 {
     private Dictionary<string, Func<object>> _valueDelegates = new Dictionary<string, Func<object>>();
     private static ProxyGenerator _proxyGenerator = new ProxyGenerator();
@@ -13,8 +13,7 @@ public abstract class LazyObject<TClass> : IIntercept where TClass : class
     /// <returns></returns>
     public static TClass Create()
     {
-        //return _proxyGenerator.CreateClassProxy<TClass>(new MiniProfilerInterceptor(), new GenericInterceptor());
-        return _proxyGenerator.CreateClassProxy<TClass>(new GenericInterceptor());
+        return ProxyObjectFactory.Create<TClass>();
     }
 
     /// <summary>
@@ -32,7 +31,6 @@ public abstract class LazyObject<TClass> : IIntercept where TClass : class
         {
             return valueGetter();
         };
-        //RemoveFromCache(propName);
     }
 
     /// <summary>
@@ -90,14 +88,14 @@ public abstract class LazyObject<TClass> : IIntercept where TClass : class
     /// <param name="invocation"></param>
     private void InterceptGet(IInvocation invocation)
     {
-        string name = invocation.Method.Name.Replace("get_", string.Empty);
-        if (!_valueDelegates.ContainsKey(name))
+        string propertyName = invocation.Method.Name.Replace("get_", string.Empty);
+        if (!_valueDelegates.ContainsKey(propertyName))
         {
             invocation.Proceed();
             return;
         }
         Func<object> valuegetter = null;
-        _valueDelegates.TryGetValue(name, out valuegetter);
+        _valueDelegates.TryGetValue(propertyName, out valuegetter);
         if (valuegetter == null)
         {
             invocation.Proceed();
@@ -105,7 +103,7 @@ public abstract class LazyObject<TClass> : IIntercept where TClass : class
         }
         var val = valuegetter();
         invocation.ReturnValue = val;
-        SetValue(invocation, name, val); //set the value of the property
+        SetValue(invocation, propertyName, val); //set the value of the property
     }
 
     /// <summary>
@@ -115,9 +113,9 @@ public abstract class LazyObject<TClass> : IIntercept where TClass : class
     /// <param name="invocation"></param>
     private void InterceptSet(IInvocation invocation)
     {
-        string name = invocation.Method.Name.Replace("set_", string.Empty);
-        var value = invocation.GetArgumentValue(0);
-        SetValue(invocation, name, value);
+        string propertyName = invocation.Method.Name.Replace("set_", string.Empty);
+        _valueDelegates.Remove(propertyName);
+        invocation.Proceed();
     }
 
     /// <summary>
@@ -128,8 +126,12 @@ public abstract class LazyObject<TClass> : IIntercept where TClass : class
     /// <param name="val">the value of the target property</param>
     private void SetValue(IInvocation invocation, string propertyName, object val)
     {
+        if (!_valueDelegates.ContainsKey(propertyName))
+        {
+            return; //this is here to prevent stackoverflow..
+        }
+        _valueDelegates.Remove(propertyName);
         var prop = invocation.TargetType.GetProperty(propertyName);
         prop.SetValue(invocation.InvocationTarget, val);
-        _valueDelegates.Remove(propertyName);
     }
 }
