@@ -24,13 +24,36 @@ public abstract class LazyObject<TClass> : IIntercept where TClass : class,IInte
     /// <param name="valueGetter">A function to get the properties value</param>
     public void SetLazy<TProp>(Expression<Func<TClass, TProp>> propertyGetter, Func<TProp> valueGetter)
     {
-        //TODO: check of member is virtual
         var membExpr = propertyGetter.Body as MemberExpression;
         var propName = membExpr.Member.Name;
-        _valueDelegates[propName] = () =>
+        //if it's virtual we can intercept and set our delegate
+        if (IsVirtual(propName))
         {
-            return valueGetter();
-        };
+            _valueDelegates[propName] = () =>
+            {
+                return valueGetter();
+            };
+        } //otherwise set property as normal
+        else
+        {
+            var prop = this.GetType().GetProperty(propName);
+            if (prop == null)
+                return;
+
+            prop.SetValue(this, valueGetter());
+        }
+    }
+    /// <summary>
+    /// Returns true if the property is virtual
+    /// </summary>
+    /// <param name="propName"></param>
+    /// <returns></returns>
+    private bool IsVirtual(string propName)
+    {
+        var prop = this.GetType().GetProperty(propName);
+        if (prop == null)
+            return false;
+        return prop.GetGetMethod().IsVirtual;
     }
 
     /// <summary>
